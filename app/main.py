@@ -2,7 +2,8 @@ from fastapi import FastAPI, Depends, HTTPException, Request, status
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from contextlib import asynccontextmanager
 from passlib.context import CryptContext
@@ -15,6 +16,7 @@ from pathlib import Path
 from fastapi import UploadFile, File
 
 from . import models, schemas
+from .schemas import Answer, AnswerCreate, VoteCreate
 from .database import engine, get_db, Base
 from .ai_search import search_engine
 
@@ -171,13 +173,11 @@ async def login(credentials: schemas.UserLogin, db: AsyncSession = Depends(get_d
 
 @app.get("/login/")
 async def login_page(request: Request):
-    with open("templates/login.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    return render_template("login.html", {"request": request})
 
 @app.get("/register/")
 async def register_page(request: Request):
-    with open("templates/register.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    return render_template("register.html", {"request": request})
 
 @app.get("/logout/")
 async def logout():
@@ -246,17 +246,31 @@ async def get_tags():
 
 # Question endpoints
 @app.post("/questions/", response_model=schemas.Question)
-async def create_question(question: schemas.QuestionCreate, db: AsyncSession = Depends(get_db)):
-    db_question = models.Question(**question.model_dump())
+async def create_question(question: schemas.QuestionCreate, request: Request, db: AsyncSession = Depends(get_db)):
+    current_user = await get_current_user(request, db)
+    
+    db_question = models.Question(
+        **question.model_dump(),
+        owner_id=current_user.id if current_user else None
+    )
     db.add(db_question)
     await db.commit()
     await db.refresh(db_question)
+    
+    # Завантажуємо owner
+    result = await db.execute(
+        select(models.Question)
+        .options(selectinload(models.Question.owner))
+        .where(models.Question.id == db_question.id)
+    )
+    question_with_owner = result.scalar_one()
+    
     await update_search_cache(db)
-    return db_question
+    return question_with_owner
 
 @app.get("/questions/", response_model=List[schemas.Question])
 async def get_questions(skip: int = 0, limit: int = 50, category: str = None, db: AsyncSession = Depends(get_db)):
-    query = select(models.Question)
+    query = select(models.Question).options(selectinload(models.Question.owner))
     if category:
         query = query.where(models.Question.category == category)
     query = query.offset(skip).limit(limit)
@@ -265,7 +279,11 @@ async def get_questions(skip: int = 0, limit: int = 50, category: str = None, db
 
 @app.get("/questions/{question_id}", response_model=schemas.Question)
 async def get_question(question_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(models.Question).where(models.Question.id == question_id))
+    result = await db.execute(
+        select(models.Question)
+        .options(selectinload(models.Question.owner))
+        .where(models.Question.id == question_id)
+    )
     question = result.scalar_one_or_none()
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
@@ -298,3 +316,189 @@ async def get_categories():
 @app.get("/api")
 async def api_root():
     return {"message": "API is alive"}
+
+# Vote endpoints
+@app.post("/questions/{question_id}/vote")
+async def vote_question(
+    question_id: int,
+    vote_data: VoteCreate,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    current_user = await get_current_user(request, db)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    question = await db.get(models.Question, question_id)
+    if not question:
+        raise HTTPException(status_code=404, detail="Question not found")
+    
+    existing_vote = await db.execute(
+        select(models.Vote).where(
+            (models.Vote.user_id == current_user.id) & 
+            (models.Vote.question_id == question_id)
+        )
+    )
+    existing_vote = existing_vote.scalar_one_or_none()
+    
+    if existing_vote:
+        if existing_vote.vote_type == vote_data.vote_type.value:
+            await db.delete(existing_vote)
+            question.vote_score += 1 if vote_data.vote_type.value == "downvote" else -1
+        else:
+            existing_vote.vote_type = vote_data.vote_type.value
+            question.vote_score += 2 if vote_data.vote_type.value == "upvote" else -2
+    else:
+        new_vote = models.Vote(
+            user_id=current_user.id,
+            question_id=question_id,
+            vote_type=vote_data.vote_type.value
+        )
+        db.add(new_vote)
+        question.vote_score += 1 if vote_data.vote_type.value == "upvote" else -1
+    
+    await db.commit()
+    await db.refresh(question)
+    
+    return {"vote_score": question.vote_score}
+
+@app.post("/answers/{answer_id}/vote")
+async def vote_answer(
+    answer_id: int,
+    vote_data: VoteCreate,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    current_user = await get_current_user(request, db)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    answer = await db.get(models.Answer, answer_id)
+    if not answer:
+        raise HTTPException(status_code=404, detail="Answer not found")
+    
+    existing_vote = await db.execute(
+        select(models.Vote).where(
+            (models.Vote.user_id == current_user.id) & 
+            (models.Vote.answer_id == answer_id)
+        )
+    )
+    existing_vote = existing_vote.scalar_one_or_none()
+    
+    if existing_vote:
+        if existing_vote.vote_type == vote_data.vote_type.value:
+            await db.delete(existing_vote)
+            answer.vote_score += 1 if vote_data.vote_type.value == "downvote" else -1
+        else:
+            existing_vote.vote_type = vote_data.vote_type.value
+            answer.vote_score += 2 if vote_data.vote_type.value == "upvote" else -2
+    else:
+        new_vote = models.Vote(
+            user_id=current_user.id,
+            answer_id=answer_id,
+            vote_type=vote_data.vote_type.value
+        )
+        db.add(new_vote)
+        answer.vote_score += 1 if vote_data.vote_type.value == "upvote" else -1
+    
+    await db.commit()
+    await db.refresh(answer)
+    
+    return {"vote_score": answer.vote_score}
+
+# Answer endpoints
+@app.post("/questions/{question_id}/answers", response_model=Answer)
+async def create_answer(
+    question_id: int,
+    answer: AnswerCreate,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    current_user = await get_current_user(request, db)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    question = await db.get(models.Question, question_id)
+    if not question:
+        raise HTTPException(status_code=404, detail="Question not found")
+    
+    db_answer = models.Answer(
+        body=answer.body,
+        question_id=question_id,
+        owner_id=current_user.id
+    )
+    db.add(db_answer)
+    await db.commit()
+    
+    # Завантажуємо з owner
+    result = await db.execute(
+        select(models.Answer)
+        .options(selectinload(models.Answer.owner))
+        .where(models.Answer.id == db_answer.id)
+    )
+    answer_with_owner = result.scalar_one()
+    
+    return answer_with_owner
+
+@app.get("/questions/{question_id}/answers", response_model=List[Answer])
+async def get_answers(question_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(models.Answer)
+        .options(selectinload(models.Answer.owner))
+        .where(models.Answer.question_id == question_id)
+        .order_by(models.Answer.is_accepted.desc(), models.Answer.vote_score.desc(), models.Answer.created_at)
+    )
+    answers = result.scalars().all()
+    return list(answers)
+
+@app.put("/answers/{answer_id}/accept")
+async def accept_answer(
+    answer_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    current_user = await get_current_user(request, db)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    answer = await db.get(models.Answer, answer_id)
+    if not answer:
+        raise HTTPException(status_code=404, detail="Answer not found")
+    
+    question = await db.get(models.Question, answer.question_id)
+    if question.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the question owner can accept an answer")
+    
+    await db.execute(
+        update(models.Answer)
+        .where(models.Answer.question_id == question.id)
+        .values(is_accepted=False)
+    )
+    
+    answer.is_accepted = True
+    await db.commit()
+    await db.refresh(answer)
+    
+    return {"message": "Answer accepted", "answer_id": answer_id}
+
+@app.delete("/answers/{answer_id}")
+async def delete_answer(
+    answer_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    current_user = await get_current_user(request, db)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    answer = await db.get(models.Answer, answer_id)
+    if not answer:
+        raise HTTPException(status_code=404, detail="Answer not found")
+    
+    if answer.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    await db.delete(answer)
+    await db.commit()
+    
+    return {"message": "Answer deleted"}

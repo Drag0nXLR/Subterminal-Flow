@@ -164,6 +164,22 @@
         <!-- Question details loaded here -->
     </div>
 
+    <div class="answers-section" id="answers-section">
+        <h2 class="answers-title", id="answers-count">0 Answers</h2>
+        
+        <!-- Answer form (тільки якщо залогінений) -->
+        <div id="answer-form-container" class="answer-form-container" style="display: none;">
+            <h3>Your Answer</h3>
+            <textarea id="answer-body" class="form-textarea" placeholder="Write your answer here..."></textarea>
+            <button class="btn btn-primary" onclick="submitAnswer()">Post Answer</button>
+        </div>
+        
+        <!-- Answers list -->
+        <div id="answers-list">
+            <!-- Answers will be loaded here -->
+        </div>
+    </div>
+
     <div class="card related-section">
         <div class="related-title">
             Related Questions

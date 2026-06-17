@@ -377,6 +377,8 @@ async function handleSearch(e) {
 }
 
 async function loadQuestionDetails(id) {
+    window.currentQuestionId = id;
+    
     const res = await fetch(`/questions/${id}`);
     const q = await res.json();
     
@@ -393,14 +395,24 @@ async function loadQuestionDetails(id) {
     
     document.getElementById('main-question-card').innerHTML = `
         <div class="question-detail">
-            <span class="category-badge">${categoryName}</span>
-            <h1>${q.title}</h1>
-            <div class="question-meta" style="margin-bottom: 20px;">
-                <span class="timestamp">Asked ${date}</span>
-                ${tags}
+            <!-- Спочатку контент питання -->
+            <div class="question-content">
+                <span class="category-badge">${categoryName}</span>
+                <h1>${q.title}</h1>
+                <div class="question-meta" style="margin-bottom: 20px;">
+                    <span class="timestamp">Asked ${date}</span>
+                    ${tags}
+                </div>
+                <div class="markdown-body question-detail-body">
+                    ${marked.parse(q.body)}
+                </div>
             </div>
-            <div class="markdown-body question-detail-body">
-                ${marked.parse(q.body)}
+            
+            <!-- Потім голосування СПРАВА -->
+            <div class="question-votes">
+                <button class="vote-btn" onclick="voteQuestion(${id}, 'upvote')">▲</button>
+                <div class="vote-score" id="question-vote-${id}">${q.vote_score}</div>
+                <button class="vote-btn" onclick="voteQuestion(${id}, 'downvote')">▼</button>
             </div>
         </div>
     `;
@@ -408,6 +420,14 @@ async function loadQuestionDetails(id) {
     document.querySelectorAll('#main-question-card pre code').forEach((block) => {
         hljs.highlightElement(block);
     });
+
+    // Завантажуємо відповіді
+    await loadAnswers(id);
+    
+    // Показуємо форму відповіді якщо залогінений
+    if (currentUser) {
+        document.getElementById('answer-form-container').style.display = 'block';
+    }
 
     const relatedRes = await fetch(`/questions/${id}/related`);
     const related = await relatedRes.json();
@@ -464,7 +484,7 @@ function renderQuestions(questions, containerId, isSearch = false) {
         return `
             <div class="card question-item" onclick="showQuestionView(${q.id})" style="cursor: pointer; padding: 16px;">
                 <div class="question-stats">
-                    <div class="stat-box stat-answers">0</div>
+                    <div class="stat-box stat-answers">${q.vote_score || 0}</div>
                     <div class="stat-box stat-views">0</div>
                 </div>
                 <div class="question-content">
@@ -482,6 +502,139 @@ function renderQuestions(questions, containerId, isSearch = false) {
     container.querySelectorAll('pre code').forEach((block) => {
         hljs.highlightElement(block);
     });
+}
+
+// Vote functions
+async function voteQuestion(questionId, voteType) {
+    try {
+        const response = await fetch(`/questions/${questionId}/vote`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ vote_type: voteType, question_id: questionId })
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            updateVoteDisplay(`question-vote-${questionId}`, result.vote_score);
+        } else if (response.status === 401) {
+            alert('Please log in to vote');
+            window.location.href = '/login/';
+        }
+    } catch (error) {
+        console.error('Vote error:', error);
+    }
+}
+
+async function voteAnswer(answerId, voteType) {
+    try {
+        const response = await fetch(`/answers/${answerId}/vote`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ vote_type: voteType, answer_id: answerId })
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            updateVoteDisplay(`answer-vote-${answerId}`, result.vote_score);
+        } else if (response.status === 401) {
+            alert('Please log in to vote');
+            window.location.href = '/login/';
+        }
+    } catch (error) {
+        console.error('Vote error:', error);
+    }
+}
+
+function updateVoteDisplay(elementId, score) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.textContent = score;
+    }
+}
+
+// Answer functions
+async function submitAnswer() {
+    const body = document.getElementById('answer-body').value;
+    const questionId = window.currentQuestionId;
+    
+    if (!body || body.length < 20) {
+        alert('Answer must be at least 20 characters');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/questions/${questionId}/answers`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ body, question_id: questionId })
+        });
+        
+        if (response.ok) {
+            document.getElementById('answer-body').value = '';
+            loadAnswers(questionId);
+        } else if (response.status === 401) {
+            alert('Please log in to answer');
+            window.location.href = '/login/';
+        }
+    } catch (error) {
+        console.error('Answer error:', error);
+    }
+}
+
+async function loadAnswers(questionId) {
+    try {
+        const response = await fetch(`/questions/${questionId}/answers`);
+        const answers = await response.json();
+        
+        const countElement = document.getElementById('answers-count');
+        if (countElement) {
+            countElement.textContent = `${answers.length} Answer${answers.length !== 1 ? 's' : ''}`;
+        }
+        
+        const container = document.getElementById('answers-list');
+        if (answers.length === 0) {
+            container.innerHTML = '<p style="color: var(--text-muted);">No answers yet. Be the first to answer!</p>';
+            return;
+        }
+        
+        container.innerHTML = answers.map(answer => `
+            <div class="answer-item ${answer.is_accepted ? 'accepted-answer' : ''}" id="answer-${answer.id}">
+                <div class="answer-content">
+                    <div class="markdown-body">${marked.parse(answer.body)}</div>
+                    <div class="answer-meta">
+                        <span class="answer-author">${answer.owner?.username || 'Anonymous'}</span>
+                        <span class="answer-time">${new Date(answer.created_at).toLocaleString()}</span>
+                    </div>
+                </div>
+                <div class="answer-votes">
+                    <button class="vote-btn" onclick="voteAnswer(${answer.id}, 'upvote')">▲</button>
+                    <div class="vote-score" id="answer-vote-${answer.id}">${answer.vote_score}</div>
+                    <button class="vote-btn" onclick="voteAnswer(${answer.id}, 'downvote')">▼</button>
+                    ${answer.is_accepted ? '<div class="accepted-badge">✓</div>' : ''}
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Load answers error:', error);
+    }
+}
+
+async function acceptAnswer(answerId) {
+    try {
+        const response = await fetch(`/answers/${answerId}/accept`, {
+            method: 'PUT'
+        });
+        
+        if (response.ok) {
+            const questionId = window.currentQuestionId;
+            loadAnswers(questionId);
+        } else {
+            const error = await response.json();
+            alert(error.detail || 'Failed to accept answer');
+        }
+    } catch (error) {
+        console.error('Accept answer error:', error);
+    }
 }
 
 // Event Listeners

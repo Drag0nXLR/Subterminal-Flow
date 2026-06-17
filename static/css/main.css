@@ -122,6 +122,15 @@ body {
     background: #e07000;
 }
 
+.btn-danger {
+    background: var(--danger);
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #c9302c;
+}
+
 /* Layout */
 .container {
     max-width: 1264px;
@@ -611,6 +620,9 @@ body {
 
 /* Question Detail */
 .question-detail {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 24px;
     background: var(--bg-white);
     border: 1px solid var(--border);
     border-radius: 3px;
@@ -768,6 +780,12 @@ body {
         flex-direction: row;
         align-items: center;
     }
+    .question-detail {
+        grid-template-columns: 1fr;
+    }
+    .answer-item {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* User Info in Sidebar */
@@ -825,4 +843,135 @@ body {
     width: 100%;
     text-align: center;
     text-decoration: none;
+}
+
+/* Vote Buttons - Вертикальне розташування */
+.question-votes, .answer-votes {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px;
+    background: var(--bg-main);
+    border-radius: 3px;
+    min-width: 60px;
+    height: fit-content;
+}
+
+.vote-btn {
+    background: var(--bg-white);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-muted);
+    padding: 4px 8px;
+    border-radius: 3px;
+    transition: all 0.2s;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.vote-btn:hover {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+}
+
+.vote-score {
+    font-weight: bold;
+    font-size: 16px;
+    color: var(--text-main);
+    min-width: 30px;
+    text-align: center;
+}
+
+/* Answers Section */
+.answers-section {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+}
+
+.answers-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 20px;
+}
+
+.answer-form-container {
+    background: var(--bg-white);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.answer-form-container h3 {
+    margin-top: 0;
+    margin-bottom: 12px;
+}
+
+.form-textarea {
+    width: 100%;
+    min-height: 150px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-family: inherit;
+    font-size: 13px;
+    resize: vertical;
+    margin-bottom: 12px;
+}
+
+/* Answer Item - з голосуванням справа */
+.answer-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: var(--bg-white);
+    align-items: start;
+}
+
+.answer-item:last-child {
+    margin-bottom: 0;
+}
+
+.answer-item.accepted-answer {
+    background: #e8f5e9;
+    border: 1px solid var(--success);
+}
+
+.accepted-badge {
+    color: var(--success);
+    font-size: 24px;
+    margin-top: 8px;
+}
+
+.answer-content {
+    min-width: 0;
+}
+
+.answer-meta {
+    display: flex;
+    gap: 12px;
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+    align-items: center;
+}
+
+.answer-author {
+    font-weight: 600;
+    color: var(--accent);
+}
+
+.answer-time {
+    margin-left: auto;
 }
