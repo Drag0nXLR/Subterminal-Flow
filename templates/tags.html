@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Tags - Subterminal Flow{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/tags.css">
+{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Tags</h1>
+<p class="page-description">
+    A tag is a keyword or label that categorizes your question with other, similar questions.
+</p>
+
+<div class="tags-grid" id="tags-grid">
+    <!-- Tags loaded dynamically -->
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/tags.js"></script>
+{% endblock %}

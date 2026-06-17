@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log In - Subterminal Flow</title>
+    <link rel="stylesheet" href="/static/css/auth.css">
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <a href="/" class="logo">
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                        <rect width="32" height="32" rx="4" fill="#0a95ff"/>
+                        <text x="16" y="22" text-anchor="middle" fill="white" font-size="16" font-weight="bold">S</text>
+                    </svg>
+                    Subterminal Flow
+                </a>
+                <h1>Log In</h1>
+            </div>
+
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="error-message" id="error-message"></div>
+                
+                <div class="form-group">
+                    <label class="form-label">Username</label>
+                    <input type="text" class="form-input" id="username" required autocomplete="username">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" class="form-input" id="password" required autocomplete="current-password">
+                </div>
+
+                <button type="submit" class="btn btn-primary">Log In</button>
+            </form>
+
+            <div class="auth-footer">
+                <p>Don't have an account? <a href="/register/">Sign up</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/auth.js"></script>
+</body>
+</html>

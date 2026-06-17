@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Subterminal Flow{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/settings.css">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="page-title">Settings</h1>
+    
+    <div class="card">
+        <h2>Profile Settings</h2>
+        
+        <div class="success-message" id="success-message">Profile updated successfully!</div>
+        
+        <div class="form-group">
+            <label class="form-label">Username</label>
+            <input type="text" class="form-input" id="username" value="{{ user.username }}">
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-input" id="email" value="{{ user.email }}">
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">New Password (leave blank to keep current)</label>
+            <input type="password" class="form-input" id="password" placeholder="••••••••">
+        </div>
+        
+        <button class="btn" onclick="updateProfile()">Update Profile</button>
+        <a href="/logout/" class="btn btn-danger">Logout</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/settings.js"></script>
+{% endblock %}

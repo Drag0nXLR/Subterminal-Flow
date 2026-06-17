@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Subterminal Flow{% endblock %}</title>
+    
+    {% block head %}
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    {% endblock %}
+    
+    <link rel="stylesheet" href="/static/css/main.css">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <a href="/" class="logo">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                    <rect width="32" height="32" rx="4" fill="#0a95ff"/>
+                    <text x="16" y="22" text-anchor="middle" fill="white" font-size="16" font-weight="bold">S</text>
+                </svg>
+                Subterminal Flow
+            </a>
+            <nav class="nav-links">
+                <a href="/" class="nav-link {% if request.url.path == '/' %}active{% endif %}">Questions</a>
+                <a href="/tags/" class="nav-link {% if request.url.path == '/tags/' %}active{% endif %}">Tags</a>
+                <a href="#" class="nav-link">Users</a>
+            </nav>
+            <button class="btn" onclick="showCreateView()">Ask Question</button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div id="user-info" class="user-info" style="display: none;">
+                <div class="user-avatar">
+                    <span id="user-initial">U</span>
+                </div>
+                <div class="user-details">
+                    <div class="user-name" id="user-name">User</div>
+                    <div class="user-stats">
+                        <span id="user-reputation">0</span> rep
+                    </div>
+                </div>
+            </div>
+
+            <ul class="sidebar-menu">
+                <li class="sidebar-item">
+                    <a href="/" class="sidebar-link {% if request.url.path == '/' %}active{% endif %}" data-page="all">
+                        <span class="sidebar-icon">📋</span>
+                        All Questions
+                    </a>
+                </li>
+                <li class="sidebar-item">
+                    <a href="#" class="sidebar-link {% if request.url.path == '/' and request.query_params.get('action') == 'ask' %}active{% endif %}" data-page="ask" onclick="showCreateView(); return false;">
+                        <span class="sidebar-icon">✏️</span>
+                        Ask Question
+                    </a>
+                </li>
+                <li class="sidebar-item">
+                    <a href="/tags/" class="sidebar-link {% if request.url.path == '/tags/' %}active{% endif %}" data-page="tags">
+                        <span class="sidebar-icon">🏷️</span>
+                        Tags
+                    </a>
+                </li>
+            </ul>
+
+            <div id="auth-buttons" class="auth-buttons">
+                <a href="/login/" class="btn btn-secondary btn-block">Log In</a>
+                <a href="/register/" class="btn btn-primary btn-block">Sign Up</a>
+            </div>
+
+            <div id="logout-button" class="logout-buttons" style="display: none;">
+                <a href="/settings/" class="btn btn-block">Settings</a>
+                <a href="/logout/" class="btn btn-secondary btn-block">Logout</a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
