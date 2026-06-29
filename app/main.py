@@ -8,7 +8,6 @@ from typing import List, Optional
 from contextlib import asynccontextmanager
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
-import markdown
 from jose import jwt
 from jose.exceptions import JWTError
 import uuid
@@ -82,9 +81,6 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db))
         return result.scalar_one_or_none()
     except JWTError:
         return None
-
-def render_markdown(text: str) -> str:
-    return markdown.markdown(text, extensions=['fenced_code', 'codehilite'])
 
 async def update_search_cache(db: AsyncSession):
     result = await db.execute(select(models.Question))

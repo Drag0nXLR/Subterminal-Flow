@@ -3,10 +3,23 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from .database import Base
 import enum
+import markdown
 
 class VoteType(str, enum.Enum):
     UPVOTE = "upvote"
     DOWNVOTE = "downvote"
+
+def render_markdown(text: str) -> str:
+    if not text:
+        return ""
+    return markdown.markdown(text, extensions=['fenced_code', 'codehilite'])
+
+class MarkdownBodyMixin:
+    body = Column(Text, nullable=False)
+
+    @property
+    def body_html(self) -> str:
+        return render_markdown(self.body)
 
 class User(Base):
     __tablename__ = "users"
@@ -23,12 +36,11 @@ class User(Base):
     answers = relationship("Answer", back_populates="owner")
     votes = relationship("Vote", back_populates="owner")
 
-class Question(Base):
+class Question(Base, MarkdownBodyMixin):
     __tablename__ = "questions"
     
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True, nullable=False)
-    body = Column(Text, nullable=False)
     category = Column(String, index=True, default="general")
     tags = Column(String, default="")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -39,11 +51,10 @@ class Question(Base):
     answers = relationship("Answer", back_populates="question", cascade="all, delete-orphan")
     votes = relationship("Vote", back_populates="question", cascade="all, delete-orphan")
 
-class Answer(Base):
+class Answer(Base, MarkdownBodyMixin):
     __tablename__ = "answers"
     
     id = Column(Integer, primary_key=True, index=True)
-    body = Column(Text, nullable=False)
     question_id = Column(Integer, ForeignKey("questions.id"), nullable=False)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     is_accepted = Column(Boolean, default=False)

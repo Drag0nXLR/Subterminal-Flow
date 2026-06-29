@@ -914,6 +914,19 @@ body {
     margin-bottom: 12px;
 }
 
+.answer-form-container .editor-textarea,
+.answer-form-container .editor-preview {
+    min-height: 200px;
+}
+
+.answer-form-container .form-hint {
+    margin-top: 8px;
+}
+
+.answer-form-container .form-actions {
+    margin-top: 16px;
+}
+
 .form-textarea {
     width: 100%;
     min-height: 150px;

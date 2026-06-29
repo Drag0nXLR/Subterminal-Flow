@@ -63,7 +63,8 @@ class Answer(AnswerBase):
     is_accepted: bool
     vote_score: int = 0
     created_at: datetime
-    owner: Optional[User] = None  # ← ЗАЛИШАЄМО owner
+    owner: Optional[User] = None
+    body_html: str = ""
 
     class Config:
         from_attributes = True
@@ -84,6 +85,7 @@ class Question(QuestionBase):
     vote_score: int = 0
     created_at: datetime
     owner: Optional[User] = None
+    body_html: str = ""
 
     class Config:
         from_attributes = True
