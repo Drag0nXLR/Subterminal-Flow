@@ -5,6 +5,41 @@ let selectedTags = [];
 const availableTags = ['python', 'javascript', 'typescript', 'react', 'vue', 'angular', 'node.js', 'express', 'django', 'fastapi', 'flask', 'sql', 'postgresql', 'mongodb', 'mysql', 'api', 'rest', 'graphql', 'docker', 'kubernetes', 'aws', 'azure', 'git', 'linux', 'machine-learning', 'ai', 'deep-learning', 'tensorflow', 'pytorch', 'algorithms', 'data-structures', 'web', 'frontend', 'backend', 'fullstack', 'devops', 'testing', 'debugging', 'html', 'css', 'scss', 'sass', 'webpack', 'npm', 'yarn'];
 
 let currentUser = null;
+let imageUploadTarget = 'new-body';
+
+const editorConfig = {
+    question: {
+        container: '#create-view .editor-container',
+        textareaId: 'new-body',
+        previewId: 'editor-preview',
+        uploadAreaId: 'image-upload-area',
+        progressId: 'upload-progress',
+        errorId: 'upload-error'
+    },
+    answer: {
+        container: '#answer-editor-container',
+        textareaId: 'answer-body',
+        previewId: 'answer-editor-preview',
+        uploadAreaId: 'answer-image-upload-area',
+        progressId: 'answer-upload-progress',
+        errorId: 'answer-upload-error'
+    }
+};
+
+const MD_ACTIONS = {
+    bold: { prefix: '**', suffix: '**' },
+    italic: { prefix: '_', suffix: '_' },
+    code: { prefix: '`', suffix: '`' },
+    link: { prefix: '[', suffix: '](url)' },
+    codeblock: { prefix: '```python\n', suffix: '\n```' }, 
+    quote: { prefix: '> ', suffix: '' },
+    bullet: { prefix: '- ', suffix: '' },
+    numbered: { prefix: '1. ', suffix: '' }
+};
+
+function getEditorConfig(editor = 'question') {
+    return editorConfig[editor] || editorConfig.question;
+}
 
 async function loadCurrentUser() {
     try {
@@ -109,18 +144,9 @@ function showCreateView() {
     hideTagSuggestions();
     
     // Закриття області завантаження зображень
-    closeImageUpload();
+    closeImageUpload('new-body');
     
-    // Скидання редактора на вкладку "Write"
-    const tabs = document.querySelectorAll('.editor-tab');
-    const textarea = document.querySelector('.editor-textarea');
-    const preview = document.querySelector('.editor-preview');
-    
-    tabs.forEach(t => t.classList.remove('active'));
-    tabs[0].classList.add('active');
-    preview.classList.remove('active');
-    preview.innerHTML = '';
-    textarea.style.display = 'block';
+    resetEditor('question');
     
     // Оновлення сайдбару - "Ask Question" активний
     updateSidebarActive('ask');
@@ -136,8 +162,12 @@ function showQuestionView(id) {
 }
 
 // Markdown Editor
-function insertMarkdown(prefix, suffix) {
-    const textarea = document.getElementById('new-body');
+function insertMarkdown(prefix, suffix, textareaId = 'new-body') {
+    const textarea = document.getElementById(textareaId);
+    if (!textarea) return;
+
+    textarea.focus();
+
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const text = textarea.value;
@@ -148,20 +178,69 @@ function insertMarkdown(prefix, suffix) {
     
     const newCursorPos = start + prefix.length + selectedText.length;
     textarea.setSelectionRange(newCursorPos, newCursorPos);
-    textarea.focus();
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
-function switchEditorTab(tab) {
-    const tabs = document.querySelectorAll('.editor-tab');
-    const textarea = document.querySelector('.editor-textarea');
-    const preview = document.querySelector('.editor-preview');
+function initMarkdownEditors() {
+    document.querySelectorAll('.editor-container').forEach(container => {
+        const textarea = container.querySelector('.editor-textarea');
+        if (!textarea) return;
+
+        container.querySelectorAll('.toolbar-btn[data-md]').forEach(btn => {
+            btn.addEventListener('mousedown', (e) => e.preventDefault());
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const action = MD_ACTIONS[btn.dataset.md];
+                if (!action) return;
+                insertMarkdown(action.prefix, action.suffix, textarea.id);
+            });
+        });
+
+        container.querySelectorAll('.toolbar-btn[data-action="image"]').forEach(btn => {
+            btn.addEventListener('mousedown', (e) => e.preventDefault());
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                openImageUpload(textarea.id);
+            });
+        });
+    });
+}
+
+function resetEditor(editor = 'question') {
+    const config = getEditorConfig(editor);
+    const container = document.querySelector(config.container);
+    if (!container) return;
+
+    const tabs = container.querySelectorAll('.editor-tab');
+    const textarea = document.getElementById(config.textareaId);
+    const preview = document.getElementById(config.previewId);
+
+    tabs.forEach(t => t.classList.remove('active'));
+    if (tabs[0]) tabs[0].classList.add('active');
+    if (preview) {
+        preview.classList.remove('active');
+        preview.innerHTML = '';
+    }
+    if (textarea) {
+        textarea.style.display = 'block';
+        textarea.value = '';
+    }
+}
+
+function switchEditorTab(tab, editor = 'question') {
+    const config = getEditorConfig(editor);
+    const container = document.querySelector(config.container);
+    if (!container) return;
+
+    const tabs = container.querySelectorAll('.editor-tab');
+    const textarea = document.getElementById(config.textareaId);
+    const preview = document.getElementById(config.previewId);
     
     tabs.forEach(t => t.classList.remove('active'));
     
     if (tab === 'preview') {
         tabs[1].classList.add('active');
-        const markdown = document.getElementById('new-body').value;
-        preview.innerHTML = marked.parse(markdown);
+        preview.innerHTML = marked.parse(textarea.value);
         preview.classList.add('active');
         textarea.style.display = 'none';
     } else {
@@ -172,14 +251,21 @@ function switchEditorTab(tab) {
 }
 
 // Image Upload
-function openImageUpload() {
-    document.getElementById('image-upload-area').classList.add('active');
+function getUploadConfig(textareaId = 'new-body') {
+    return textareaId === 'answer-body' ? editorConfig.answer : editorConfig.question;
 }
 
-function closeImageUpload() {
-    document.getElementById('image-upload-area').classList.remove('active');
-    document.getElementById('upload-progress').textContent = '';
-    document.getElementById('upload-error').textContent = '';
+function openImageUpload(textareaId = 'new-body') {
+    imageUploadTarget = textareaId;
+    const config = getUploadConfig(textareaId);
+    document.getElementById(config.uploadAreaId).classList.add('active');
+}
+
+function closeImageUpload(textareaId = 'new-body') {
+    const config = getUploadConfig(textareaId);
+    document.getElementById(config.uploadAreaId).classList.remove('active');
+    document.getElementById(config.progressId).textContent = '';
+    document.getElementById(config.errorId).textContent = '';
 }
 
 function handleDragOver(event) {
@@ -197,20 +283,38 @@ function handleDrop(event) {
     
     const files = event.dataTransfer.files;
     if (files.length > 0) {
-        uploadImage(files[0]);
+        uploadImage(files[0], 'new-body');
+    }
+}
+
+function handleAnswerDrop(event) {
+    event.preventDefault();
+    event.currentTarget.classList.remove('dragover');
+    
+    const files = event.dataTransfer.files;
+    if (files.length > 0) {
+        uploadImage(files[0], 'answer-body');
     }
 }
 
 function handleFileSelect(event) {
     const files = event.target.files;
     if (files.length > 0) {
-        uploadImage(files[0]);
+        uploadImage(files[0], 'new-body');
     }
 }
 
-async function uploadImage(file) {
-    const progressEl = document.getElementById('upload-progress');
-    const errorEl = document.getElementById('upload-error');
+function handleAnswerFileSelect(event) {
+    const files = event.target.files;
+    if (files.length > 0) {
+        uploadImage(files[0], 'answer-body');
+    }
+}
+
+async function uploadImage(file, textareaId = imageUploadTarget) {
+    const config = getUploadConfig(textareaId);
+    const progressEl = document.getElementById(config.progressId);
+    const errorEl = document.getElementById(config.errorId);
     
     if (!file.type.startsWith('image/')) {
         errorEl.textContent = 'File must be an image';
@@ -238,8 +342,8 @@ async function uploadImage(file) {
         
         if (response.ok) {
             const markdown = `![${file.name}](${result.url})\n\n`;
-            insertMarkdown(markdown, '');
-            closeImageUpload();
+            insertMarkdown(markdown, '', textareaId);
+            closeImageUpload(textareaId);
         } else {
             errorEl.textContent = result.error || 'Upload failed';
         }
@@ -404,7 +508,7 @@ async function loadQuestionDetails(id) {
                     ${tags}
                 </div>
                 <div class="markdown-body question-detail-body">
-                    ${marked.parse(q.body)}
+                    ${q.body_html}
                 </div>
             </div>
             
@@ -427,7 +531,12 @@ async function loadQuestionDetails(id) {
     // Показуємо форму відповіді якщо залогінений
     if (currentUser) {
         document.getElementById('answer-form-container').style.display = 'block';
+    } else {
+        document.getElementById('answer-form-container').style.display = 'none';
     }
+
+    resetEditor('answer');
+    closeImageUpload('answer');
 
     const relatedRes = await fetch(`/questions/${id}/related`);
     const related = await relatedRes.json();
@@ -570,7 +679,8 @@ async function submitAnswer() {
         });
         
         if (response.ok) {
-            document.getElementById('answer-body').value = '';
+            resetEditor('answer');
+            closeImageUpload('answer');
             loadAnswers(questionId);
         } else if (response.status === 401) {
             alert('Please log in to answer');
@@ -600,7 +710,7 @@ async function loadAnswers(questionId) {
         container.innerHTML = answers.map(answer => `
             <div class="answer-item ${answer.is_accepted ? 'accepted-answer' : ''}" id="answer-${answer.id}">
                 <div class="answer-content">
-                    <div class="markdown-body">${marked.parse(answer.body)}</div>
+                    <div class="markdown-body">${answer.body_html}</div>
                     <div class="answer-meta">
                         <span class="answer-author">${answer.owner?.username || 'Anonymous'}</span>
                         <span class="answer-time">${new Date(answer.created_at).toLocaleString()}</span>
@@ -614,6 +724,10 @@ async function loadAnswers(questionId) {
                 </div>
             </div>
         `).join('');
+
+        container.querySelectorAll('pre code').forEach((block) => {
+            hljs.highlightElement(block);
+        });
     } catch (error) {
         console.error('Load answers error:', error);
     }
@@ -646,6 +760,7 @@ document.addEventListener('click', function(event) {
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', function() {
+    initMarkdownEditors();
     loadCurrentUser();
     loadCategories();
     loadQuestions();

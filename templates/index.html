@@ -78,18 +78,18 @@
             <div class="editor-container">
                 <!-- Toolbar -->
                 <div class="editor-toolbar">
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('**', '**')" title="Bold"><b>B</b></button>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('*', '*')" title="Italic"><i>I</i></button>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('`', '`')" title="Code"><code>&lt;&gt;</code></button>
+                    <button type="button" class="toolbar-btn" data-md="bold" title="Bold"><b>B</b></button>
+                    <button type="button" class="toolbar-btn" data-md="italic" title="Italic"><i>I</i></button>
+                    <button type="button" class="toolbar-btn" data-md="code" title="Code"><code>&lt;&gt;</code></button>
                     <div class="toolbar-separator"></div>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('[', '](url)')" title="Link">🔗</button>
-                    <button type="button" class="toolbar-btn" onclick="openImageUpload()" title="Image">🖼️</button>
+                    <button type="button" class="toolbar-btn" data-md="link" title="Link">🔗</button>
+                    <button type="button" class="toolbar-btn" data-action="image" title="Image">🖼️</button>
                     <div class="toolbar-separator"></div>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('```python\n', '\n```')" title="Code block">{ }</button>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('> ', '')" title="Quote">❝</button>
+                    <button type="button" class="toolbar-btn" data-md="codeblock" title="Code block">{ }</button>
+                    <button type="button" class="toolbar-btn" data-md="quote" title="Quote">❝</button>
                     <div class="toolbar-separator"></div>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('- ', '')" title="Bullet list">•</button>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('1. ', '')" title="Numbered list">1.</button>
+                    <button type="button" class="toolbar-btn" data-md="bullet" title="Bullet list">•</button>
+                    <button type="button" class="toolbar-btn" data-md="numbered" title="Numbered list">1.</button>
                 </div>
                 
                 <!-- Image Upload Area -->
@@ -165,13 +165,60 @@
     </div>
 
     <div class="answers-section" id="answers-section">
-        <h2 class="answers-title", id="answers-count">0 Answers</h2>
+        <h2 class="answers-title" id="answers-count">0 Answers</h2>
         
         <!-- Answer form (тільки якщо залогінений) -->
         <div id="answer-form-container" class="answer-form-container" style="display: none;">
             <h3>Your Answer</h3>
-            <textarea id="answer-body" class="form-textarea" placeholder="Write your answer here..."></textarea>
-            <button class="btn btn-primary" onclick="submitAnswer()">Post Answer</button>
+            <div class="editor-container" id="answer-editor-container">
+                <div class="editor-toolbar">
+                    <button class="toolbar-btn" data-md="bold" title="Bold">B</button>
+                    <button class="toolbar-btn" data-md="italic" title="Italic">I</button>
+                    <button class="toolbar-btn" data-md="code" title="Code">&lt;&gt;</button>
+                    <div class="toolbar-separator"></div>
+                    <button class="toolbar-btn" data-md="link" title="Link">🔗</button>
+                    <button class="toolbar-btn" data-action="image" title="Upload Image">🖼️</button>
+                    <div class="toolbar-separator"></div>
+                    <button class="toolbar-btn" data-md="codeblock" title="Code Block">{ }</button>
+                    <button class="toolbar-btn" data-md="quote" title="Quote">❝</button>
+                    <div class="toolbar-separator"></div>
+                    <button class="toolbar-btn" data-md="bullet" title="Bullet List">•</button>
+                    <button class="toolbar-btn" data-md="numbered" title="Numbered List">1.</button>
+                </div>
+
+                <div class="image-upload-area" id="answer-image-upload-area"
+                     ondragover="handleDragOver(event)"
+                     ondragleave="handleDragLeave(event)"
+                     ondrop="handleAnswerDrop(event)">
+                    <div class="upload-info">
+                        <strong>Browse, drag & drop, or paste an image.</strong><br>
+                        Supported file types: jpeg, png, gif (Max size 2 MiB)
+                    </div>
+                    <div class="upload-actions">
+                        <label class="file-input-wrapper">
+                            <button class="btn btn-secondary" onclick="document.getElementById('answer-file-input').click()">Browse</button>
+                            <input type="file" id="answer-file-input" accept="image/*" onchange="handleAnswerFileSelect(event)" style="display: none;">
+                        </label>
+                        <button class="btn btn-secondary" onclick="closeImageUpload('answer-body')">Cancel</button>
+                        <span class="upload-progress" id="answer-upload-progress"></span>
+                    </div>
+                    <div class="upload-error" id="answer-upload-error"></div>
+                </div>
+
+                <div class="editor-tabs">
+                    <div class="editor-tab active" onclick="switchEditorTab('write', 'answer')">Write</div>
+                    <div class="editor-tab" onclick="switchEditorTab('preview', 'answer')">Preview</div>
+                </div>
+
+                <textarea class="editor-textarea" id="answer-body"
+                          placeholder="Write your answer here. Use Markdown for formatting..."></textarea>
+
+                <div class="editor-preview" id="answer-editor-preview"></div>
+            </div>
+            <div class="form-hint">Min 20 characters. Use Markdown for formatting.</div>
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="submitAnswer()">Post Answer</button>
+            </div>
         </div>
         
         <!-- Answers list -->
